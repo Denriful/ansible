@@ -1,16 +1,18 @@
 # Setup and configure ruby things for reddit app
 - name: "Reddit App: Configure app environment"
-  hosts: all
+  hosts: reddit_app
   gather_facts: no
   become: yes
 
   tasks:
   - name: Install ruby and rubygems and required packages
-    apt: "name={{ item }} state=present"
-    with_items:
-      - ruby-full
-      - ruby-dev
-      - build-essential
+    apt: 
+      name: ['ruby-full', 'ruby-dev', 'build-essential']
+    #apt: "name={{ item }} state=present"
+    #with_items:
+     # - ruby-full
+     # - ruby-dev
+     # - build-essential
 
   - name: Install Ruby bundler
     gem:
@@ -20,8 +22,10 @@
 
 # Setup and configure mongodb for reddit app
 - name: "Reddit App: Install mongodb"
-  hosts: all
+  hosts: reddit_app
   gather_facts: no
+  become: true
+  become_method: sudo
 
   tasks:
   - name: Add an apt key by id from a keyserver
@@ -45,9 +49,9 @@
       update_cache: yes
 
   - name: Start service mongodb if not started
-  service:
-    name: mongodb
-    state: started
+    service:
+      name: mongodb
+      state: started
 
 
 # Deploy reddit app
@@ -68,4 +72,4 @@
   - name: Execute shell command
     shell:
       cmd: bundle install && puma -d
-      chdir: home/appuser/reddit
+      chdir: ./reddit
