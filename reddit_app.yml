@@ -3,6 +3,11 @@
   hosts: all
   gather_facts: no
   become: yes
+  # vars dont work - maybe syntax or something diff
+  # use --extra-vars "db_host=10.128.0.52" console argument
+  #vars: 
+  #  mongo_bind_ip: 0.0.0.0
+  #  db_host: 10.128.0.52
 
   tasks:
   - name: Install ruby and rubygems and required packages
@@ -14,12 +19,15 @@
     #   - ruby-dev
     #   - build-essential
       update_cache: yes
+    tags: app-tag
 
   - name: Install Ruby bundler
     gem:
       name: bundler
       state: present
       user_install: no
+    tags: app-tag
+
 
 # Setup and configure mongodb for reddit app
 - name: "Reddit App: Install mongodb"
@@ -27,38 +35,45 @@
   gather_facts: no
   become: true
   become_method: sudo
+  tags: db-tag
 
+ 
   tasks:
   - name: Add an apt key by id from a keyserver
     apt_key:
       keyserver: keyserver.ubuntu.com
       id: D68FA50FEA312927
-    
- # - name: Add repo
- #   shell: echo "deb http://repo.mongodb.org/apt/ubuntu xenial/mongodb-org/3.2 multiverse" > /etc/apt/sources.list.d/mongodb-org-3.2.list
-
+    tags: db-tag    
+ 
   # Add specified repository into sources list.
   - apt_repository:
       repo: deb http://repo.mongodb.org/apt/ubuntu xenial/mongodb-org/3.2 multiverse
       state: present
-  
+    tags: db-tag
+
   - name: Install mongodb package
- #   debug:
- #     msg: "В этом сценарии нужно добавить модули для установки mongodb, после можно удалить вызов модуля debug, который выводит это сообщение"
+  #   debug:
+  #     msg: "В этом сценарии нужно добавить модули для установки mongodb, после можно удалить вызов модуля debug, который выводит это сообщение"
     apt:
       name: mongodb
       update_cache: yes
+    tags: db-tag
 
   - name: Start service mongodb if not started
     service:
       name: mongodb
       state: started
-
+    tags: db-tag
 
 # Deploy reddit app
 - name: "Reddit App: Deploy application"
   hosts: all
   gather_facts: no
+
+#  handlers:
+#  - name: reload puma
+#    become: true
+#    systemd: name=puma state=reloaded
 
   tasks:
  # - name: Remove me after adding real things
@@ -67,10 +82,66 @@
 
  # git clone
   - git: 
-      repo: 'https://github.com/express42/reddit.git'
+      #repo: 'https://github.com/express42/reddit.git'
+      repo: 'https://github.com/Artemmkin/raddit.git'
       dest: /home/appuser/reddit
+    tags: app-tag
 
-  - name: Execute shell command
-    shell:
-      cmd: bundle install && puma -d
-      chdir: ./reddit
+  # - name: Execute shell command
+  #   shell:
+  #     cmd: bundle install && puma -d
+  #     chdir: ./reddit
+  #   tags: app-tag
+  - name: Bundle Install
+    bundler: 
+      state: present
+      chdir: /home/appuser/reddit
+    tags: app-tag
+
+  - name: Add unit file for puma
+    become: true
+    copy: 
+      src: files/puma.service
+      dest: /etc/systemd/system/puma.service
+    tags: app-tag
+    notify: restart puma
+
+  - name: Add config DB connection
+    template: 
+      src: templates/db_config.j2
+      dest: /home/appuser/db_config
+    tags: app-tag
+    notify: restart puma
+
+  - name: enable puma
+    become: true
+    systemd: name=puma
+    tags: app-tag
+
+  handlers:
+  - name: reload puma
+    become: true
+    systemd: name=puma state=reloaded
+
+  - name: restart puma
+    become: true
+    systemd: name=puma state=restarted
+
+- name: Configure hosts and deploy application
+  hosts: all
+  tasks:
+  - name: Change mongo config file
+    become: true
+    template:
+      src: templates/mongodb.conf.j2
+      dest: /etc/mongodb.conf
+      mode: 0644
+    tags: db-tag
+    notify: restart mongodb
+
+  handlers:
+  - name: restart mongodb
+    become: true
+    service: name=mongodb state=restarted
+  
+
