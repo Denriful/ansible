@@ -1,0 +1,47 @@
+---
+# tasks file for app
+
+- name: Install ruby, rubygems and required packages
+  become: yes
+  apt: 
+    name: ['ruby-full', 'ruby-dev', 'build-essential']
+    update_cache: yes
+
+- name: Fetch the latest version of application code
+  git:
+    repo: 'https://github.com/Artemmkin/raddit.git'
+    dest: /home/appuser/reddit
+#  notify: restart puma
+
+- name: Install Ruby bundler
+#  become: yes
+  gem:
+    name: bundler
+    state: present
+    user_install: no
+
+- name: bundle install
+  bundler:
+    state: present
+    chdir: /home/appuser/reddit
+
+- name: Add unit file for Puma
+  become: yes
+  copy:
+  # src: files/puma.service
+    src: puma.service
+    dest: /etc/systemd/system/puma.service
+  notify: reload puma
+
+- name: Add config for DB connection
+  template:
+#   src: templates/db_config.j2
+    src: db_config.j2
+    dest: /home/appuser/db_config
+    owner: appuser
+    group: appuser
+  notify: restart puma
+
+- name: enable puma
+  become: yes
+  systemd: name=puma enabled=yes
