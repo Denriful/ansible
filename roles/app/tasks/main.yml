@@ -24,7 +24,7 @@
     state: present
     user_install: no
 
-- name: bundle install
+- name: bundle install (run twice to work!)
   bundler:
     state: present
     chdir: /home/appuser/reddit
