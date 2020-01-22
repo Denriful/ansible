@@ -2,38 +2,8 @@
 # tasks file for db
 
 - name: Show info about the env this host belongs to
-  debug: 
+  debug:
     msg: "This host is in {{ env }} environment!!!"
 
-- name: Add an apt key by id from a keyserver
-  become: yes
-  apt_key:
-    keyserver: keyserver.ubuntu.com
-    id: D68FA50FEA312927
-
-- name: Add specified repository into sources list.
-  become: yes
-  apt_repository:
-    repo: deb http://repo.mongodb.org/apt/ubuntu xenial/mongodb-org/3.2 multiverse
-    state: present
-
-- name: Install mongodb package
-  become: yes
-  apt:
-    name: mongodb
-    update_cache: yes 
-
-- name: Start service mongodb if not started
-  become: yes
-  service:
-    name: mongodb
-    state: started
-
-- name: Change mongo config file
-  become: yes
-  template:
-#   src: templates/mongodb.conf.j2
-    src: mongodb.conf.j2
-    dest: /etc/mongodb.conf
-    mode: 0644
-  notify: restart mongodb
+- include: install_mongo.yml
+- include: config_mongo.yml

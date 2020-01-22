@@ -1,0 +1,26 @@
+---
+- name: Install ruby, rubygems and required packages
+  become: yes
+  apt: 
+    name: ['ruby-full', 'ruby-dev', 'build-essential']
+    update_cache: yes
+
+- name: Fetch the latest version of application code
+  git:
+    repo: 'https://github.com/Artemmkin/raddit.git'
+  #  dest: /home/appuser/reddit
+    dest: /home/{{ deploy_user }}/reddit
+#  notify: restart puma
+
+- name: Install Ruby bundler
+  gem:
+    name: bundler
+    state: present
+    user_install: no
+  tags: ruby
+
+- name: Bundle Install (run twice to make it work!)
+  bundler: 
+    state: present
+    chdir: /home/{{ deploy_user }}/reddit
+  tags: app-tag
